@@ -45,7 +45,7 @@ import {
 	UnsupportedCommandDialectCliError,
 } from './errors';
 import { formatMissingHintsText } from './missing-hints-report';
-import { assertOrmCoreVersion, assertPackages, assertStudioNodeVersion, ormVersionGt } from './utils';
+import { assertOrmCoreVersion, assertPackages, assertStudioNodeVersion, ormVersionGt, QueryError } from './utils';
 import { assertCollisions, drivers } from './validations/common';
 import type { LibSQLCredentials } from './validations/libsql';
 import { withStyle } from './validations/outputs';
@@ -744,7 +744,9 @@ export const runPull = async (
 
 		// connectX returns lazy query proxies; runtime connect/introspect failures
 		// surface as QueryError and would leak sql/params/credentials into the
-		// envelope, so re-throw as a redacted DatabaseDriverCliError.
+		// envelope, so re-throw those redacted as DatabaseDriverCliError. Anything
+		// else (a TypeError in codegen, an fs error writing the schema) carries no
+		// credentials and keeps its own message.
 		try {
 			const { preparePostgresDB } = await import('./connections');
 			const db = await preparePostgresDB(credentials);
@@ -760,7 +762,7 @@ export const runPull = async (
 			);
 			manifest = await introspectPostgres(casing, out, breakpoints, credentials, filters, migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'postgresql',
 				['pg', 'postgres', 'bun', '@neondatabase/serverless', '@vercel/postgres'],
@@ -781,7 +783,7 @@ export const runPull = async (
 			const { handle: introspectMysql } = await import('./commands/pull-mysql');
 			manifest = await introspectMysql(casing, out, breakpoints, credentials, filters, migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'mysql',
 				['mysql2', 'bun', '@planetscale/database'],
@@ -802,7 +804,7 @@ export const runPull = async (
 			const { handle } = await import('./commands/pull-sqlite');
 			manifest = await handle(casing, out, breakpoints, credentials, filters, 'sqlite', migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'sqlite',
 				['better-sqlite3', 'bun', '@libsql/client', '@tursodatabase/database', 'node:sqlite'],
@@ -823,7 +825,7 @@ export const runPull = async (
 			const { handle } = await import('./commands/pull-libsql');
 			manifest = await handle(casing, out, breakpoints, credentials, filters, 'libsql', migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'turso',
 				['@libsql/client', '@tursodatabase/database', '@tursodatabase/serverless'],
@@ -844,7 +846,7 @@ export const runPull = async (
 			const { handle } = await import('./commands/pull-singlestore');
 			manifest = await handle(casing, out, breakpoints, credentials, filters, migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'singlestore',
 				['mysql2'],
@@ -865,7 +867,7 @@ export const runPull = async (
 			const { handle } = await import('./commands/pull-mssql');
 			manifest = await handle(casing, out, breakpoints, credentials, filters, migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'mssql',
 				['mssql'],
@@ -886,7 +888,7 @@ export const runPull = async (
 			const { handle } = await import('./commands/pull-cockroach');
 			manifest = await handle(casing, out, breakpoints, credentials, filters, migrations, init, db);
 		} catch (e) {
-			if (isTypedCliError(e)) throw e;
+			if (isTypedCliError(e) || !(e instanceof QueryError)) throw e;
 			throw new DatabaseDriverCliError(
 				'cockroach',
 				['pg'],
