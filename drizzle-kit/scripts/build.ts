@@ -13,6 +13,8 @@ const driversPackages = [
 	'@vercel/postgres',
 	'@neondatabase/serverless',
 	'@electric-sql/pglite',
+	'@aws/aurora-dsql-node-postgres-connector',
+	'@aws/aurora-dsql-postgresjs-connector',
 	// mysql drivers
 	'mysql2',
 	'@planetscale/database',
